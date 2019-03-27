@@ -1,2 +1,2 @@
 # guiping
-Ping gui in Python
+Ping gui in Powershell
