@@ -10,7 +10,20 @@ Add-Type -Assembly System.Windows.Forms
 #Create Objects
 $main_form = New-Object System.Windows.Forms.Form
 $pingproperties = @{ IPV4Address="ERROR"; Responsetime = "ERROR"; Address = ""}
-$loglocation = "C:\users\Administrator\Desktop\test.bin"
+Function Get-FileName($initialDirectory)
+{   
+ [System.Reflection.Assembly]::LoadWithPartialName(“System.windows.forms”) |
+ Out-Null
+
+ $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+ $OpenFileDialog.initialDirectory = $initialDirectory
+ $OpenFileDialog.filter = “All files (*.*)| *.*”
+ $OpenFileDialog.Title = "Please Choose Log File"
+ $OpenFileDialog.ShowDialog() | Out-Null
+
+ $OpenFileDialog.filename
+}
+$loglocation = Get-FileName("C:\")
 
 #Create Functions
 
@@ -47,15 +60,15 @@ function color-cells {
     $testvalue = $args[0].Rows[$args[1]].Cells[2].Value
     if ($testvalue -lt 100) {
         for($i = 0; $i -lt 3; $i++){
-          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Purple'
+          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Green'
         }
     }elseif($testvalue -lt 200) {
         for($i = 0; $i -lt 3; $i++){
-          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Pink'
+          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Orange'
         }
     }else {
         for($i = 0; $i -lt 3; $i++){
-              $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Orange'
+              $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Red'
             }
     }
 }
@@ -74,8 +87,10 @@ function log-binary {
     [byte[]] $bytes = @()
     #Get Unix time
     #64 bits to futureproof unix time
-    $time_unix_int64 = [convert]::toInt64([math]::Round((New-TimeSpan -Start (Get-Date "01/01/1970") -End (Get-Date)).TotalSeconds))
-    $time_unix_bytes = [bitconverter]::getbytes($time_unix_int32)
+    [int]$time_unix_int64 = [Math]::Floor([decimal](Get-Date(Get-Date).ToUniversalTime()-uformat "%s"))
+    Write-Host $time_unix_int64
+    $time_unix_bytes = [bitconverter]::getbytes($time_unix_int64)
+    Write-Host $time_unix_bytes
     $bytes += $time_unix_bytes
     $bytes += $address_length
     $bytes += $address
@@ -84,7 +99,6 @@ function log-binary {
     $logfile = open-log
     $logfile += $bytes
     [io.file]::WriteAllBytes($loglocation,$logfile)
-    Write-Host $logfile
 }
 
 function open-log {
