@@ -10,6 +10,7 @@ Add-Type -Assembly System.Windows.Forms
 #Create Objects
 $main_form = New-Object System.Windows.Forms.Form
 $pingproperties = @{ IPV4Address="ERROR"; Responsetime = "ERROR"; Address = ""}
+$loglocation = "C:\users\Administrator\Desktop\test.bin"
 
 #Create Functions
 
@@ -39,25 +40,68 @@ function write-table {
     $dataGridview.Rows.Add($args[0].IPV4Address,$args[0].Address,$args[0].ResponseTime)
     $lineno = $dataGridview.RowCount - 2
     color-cells $dataGridview $lineno
+    log-binary $args[0].Address $args[0].ResponseTime
 }
 #Conditional Colouring
 function color-cells {
     $testvalue = $args[0].Rows[$args[1]].Cells[2].Value
     if ($testvalue -lt 100) {
         for($i = 0; $i -lt 3; $i++){
-          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Green'
+          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Purple'
         }
     }elseif($testvalue -lt 200) {
         for($i = 0; $i -lt 3; $i++){
-          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Orange'
+          $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Pink'
         }
     }else {
         for($i = 0; $i -lt 3; $i++){
-              $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Red'
+              $args[0].Rows[$args[1]].Cells[$i].Style.BackColor = 'Orange'
             }
     }
 }
 
+function log-binary {
+    #Take inputs and put into local variables
+    #Args[0] is a string of the address, we will need to store its length
+    [byte]$address_length = $args[0].Length
+    #Unpack string to bytes, unsure if necessary
+    [byte[]]$address = @()
+    for($i = 0; $i -lt $address_length; $i++){
+        $address += $args[0][$i]
+    }
+    #Convert input time to bytes
+    [byte[]]$time = [bitconverter]::GetBytes($args[1])
+    [byte[]] $bytes = @()
+    #Get Unix time
+    #64 bits to futureproof unix time
+    $time_unix_int64 = [convert]::toInt64([math]::Round((New-TimeSpan -Start (Get-Date "01/01/1970") -End (Get-Date)).TotalSeconds))
+    $time_unix_bytes = [bitconverter]::getbytes($time_unix_int32)
+    $bytes += $time_unix_bytes
+    $bytes += $address_length
+    $bytes += $address
+    $bytes += $time
+    #Append to original file
+    $logfile = open-log
+    $logfile += $bytes
+    [io.file]::WriteAllBytes($loglocation,$logfile)
+    Write-Host $logfile
+}
+
+function open-log {
+    try{
+        $logfile = [IO.file]::ReadAllBytes($loglocation)
+    } Catch {
+        Write-host "File doesn't exist: creating"
+        [byte[]] $header = @()
+        $header += 0xCA
+        $header += 0xFE
+        [io.file]::WriteAllBytes($loglocation, $header)
+        $logfile = $header
+    }
+    return $logfile
+}
+
+function start-main {
 #Create font objects
 $Font_Arial_Small = New-Object System.Drawing.Font("Arial",8)
 $Font_Arial_Medium = New-Object System.Drawing.Font("Arial",14)
@@ -90,6 +134,7 @@ $textbox.Location = New-Object System.Drawing.Point(250,12)
 $dataGridview = New-Object System.Windows.Forms.DataGridView
 $dataGridview.Size = New-Object System.Drawing.Size(900,400)
 $dataGridview.Location = New-Object System.Drawing.point(0,60)
+$dataGridview.Font = New-Object System.Drawing.Font("Old English Text MT", 10)
 $dataGridview.ColumnCount = 3
 $dataGridview.ColumnHeadersVisible = $true
 $dataGridView.AutoSizeColumnsMode = "Fill"
@@ -112,3 +157,7 @@ $main_form.Controls.Add($button)
 $main_form.Controls.Add($textbox)
 #Display GUI, void ensures that it doesn't return a value on close.
 [void] $main_form.ShowDialog()
+}
+
+#Start Program
+start-main
